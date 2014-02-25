@@ -1,7 +1,5 @@
 import darkcoin_subsidy
 
-import darkcoin_subsidy
-
 print 'height 21288 diff 126.19 reward 24 nBits 469894998'
 print darkcoin_subsidy.GetBlockBaseValue(469894998, 21288)
 print 'height 23510 diff 306.53 reward 21 nBits 469816779'
