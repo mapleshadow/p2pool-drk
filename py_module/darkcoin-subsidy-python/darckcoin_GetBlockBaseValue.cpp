@@ -49,9 +49,6 @@ int64_t static GetBlockBaseValue(int nBits, int nHeight)
 
     nSubsidy *= COIN;
 
-    // Subsidy is cut in half every 210240 blocks, which will occur approximately every year
-    nSubsidy >>= (nHeight / 210240); // DarkCoin: 210k blocks in 1 year
-
     return nSubsidy ;
 }
 

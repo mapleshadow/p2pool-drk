@@ -432,6 +432,8 @@
       //console.log(interval);
       var graph_hashrate= [], graph_doa_hashrate= [];
 
+      if(!interval) interval= day;
+ 
       $.getJSON('/web/graph_data/local_hash_rate/last_' + interval, function(data) {
         $.each(data, function(key, value) {
           el= []; el.push(parseInt(value[0]) * 1000,
