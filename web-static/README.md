@@ -1,6 +1,27 @@
 p2pool-node-status
 ==================
 
+This is a more modern looking p2pool node dashboard, which aims at 
+p2pool nodes with multiple miners.
+
+This version displays local, pool and network hashrates, expected time
+to block or share, the pool minimum share difficulty etc. It includes auto-
+update for graph, miners and blocks.
+
+For each miner the individual share difficulty plus expected time to share is
+displayed (this feature needs a patch to p2pool, currently included in the
+p2pool-vtc version, see https://github.com/donSchoe/p2pool-vtc/pull/7 ).
+
+Besides new features this version contains a bunch of bugfixes to the original
+script. Hope you like it.
+
+Claus Herwig <c.herwig@checon.de>
+VTC: Ve5qPpuqrmXdZ3Z2MrE4Ki65Hu6rzc7pfY
+
+
+original readme follows
+=======================
+
 An alternative clean p2pool node dashboard. It uses Bootstrap, jQuery and Highcharts.
 
 ## Installation

@@ -18,20 +18,20 @@ nets = dict(
         TARGET_LOOKBEHIND=200, # shares  //with that the pools share diff is adjusting faster, important if huge hashing power comes to the pool
         SPREAD=30, # blocks
         NEW_SPREAD=30, # blocks
-        IDENTIFIER='17cf94c172e2eb67'.decode('hex'),
-        PREFIX='1c73d42703cc881f'.decode('hex'),
-        P2P_PORT=6902,
+        IDENTIFIER='17cf94c1ae12e98f'.decode('hex'),
+        PREFIX='5559f46dfee6881f'.decode('hex'),
+        P2P_PORT=7902,
         MIN_TARGET=4,
         MAX_TARGET=2**256//2**20 - 1,
         PERSIST=False,
-        WORKER_PORT=6903,
-        BOOTSTRAP_ADDRS='uswest.mine.nu'.split(' '),
+        WORKER_PORT=7903,
+        BOOTSTRAP_ADDRS=''.split(' '),
+        #BOOTSTRAP_ADDRS='uswest.mine.nu'.split(' '),
         ANNOUNCE_CHANNEL='#p2pool-drk',
         VERSION_CHECK=lambda v: True,
     ),
 
+
 )
 for net_name, net in nets.iteritems():
     net.NAME = net_name
-
-

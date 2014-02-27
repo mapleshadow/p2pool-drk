@@ -11,10 +11,10 @@ from p2pool.util import deferral, jsonrpc
 @defer.inlineCallbacks
 def check(bitcoind, net):
     if not (yield net.PARENT.RPC_CHECK(bitcoind)):
-        print >>sys.stderr, "    Check failed! Make sure that you're connected to the right Client with --bitcoind-rpc-port!"
+        print >>sys.stderr, "    Check failed! Make sure that you're connected to the right bitcoind with --bitcoind-rpc-port!"
         raise deferral.RetrySilentlyException()
     if not net.VERSION_CHECK((yield bitcoind.rpc_getinfo())['version']):
-        print >>sys.stderr, '    Client version too old! Upgrade to newer!'
+        print >>sys.stderr, '    Bitcoin version too old! Upgrade to 0.6.4 or newer!'
         raise deferral.RetrySilentlyException()
 
 @deferral.retry('Error getting work from bitcoind:', 3)
@@ -36,7 +36,7 @@ def getwork(bitcoind, use_getblocktemplate=False):
             work = yield go()
             end = time.time()
         except jsonrpc.Error_for_code(-32601): # Method not found
-            print >>sys.stderr, 'Error: Client version too old! Upgrade to v0.5 or newer!'
+            print >>sys.stderr, 'Error: Bitcoin version too old! Upgrade to v0.5 or newer!'
             raise deferral.RetrySilentlyException()
     packed_transactions = [(x['data'] if isinstance(x, dict) else x).decode('hex') for x in work['transactions']]
     if 'height' not in work:

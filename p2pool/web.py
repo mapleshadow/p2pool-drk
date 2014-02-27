@@ -7,13 +7,13 @@ import sys
 import time
 import traceback
 
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.python import log
 from twisted.web import resource, static
 
 import p2pool
 from bitcoin import data as bitcoin_data
-from . import data as p2pool_data
+from . import data as p2pool_data, p2p
 from util import deferral, deferred_resource, graph, math, memory, pack, variable
 
 def _atomic_read(filename):
@@ -45,7 +45,7 @@ def _atomic_write(filename, data):
         os.remove(filename)
         os.rename(filename + '.new', filename)
 
-def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Event()):
+def get_web_root(wb, datadir_path, bitcoind_getinfo_var, stop_event=variable.Event()):
     node = wb.node
     start_time = time.time()
     
@@ -83,7 +83,6 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
     def get_patron_sendmany(total=None, trunc='0.01'):
         if total is None:
             return 'need total argument. go to patron_sendmany/<TOTAL>'
-        ###Neisklar: This should be defined in the network-settings not hardcoded...
         total = int(float(total)*1e8)
         trunc = int(float(trunc)*1e8)
         return json.dumps(dict(
@@ -100,15 +99,15 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
         
         nonstale_hash_rate = p2pool_data.get_pool_attempts_per_second(node.tracker, node.best_share_var.value, lookbehind)
         stale_prop = p2pool_data.get_average_stale_prop(node.tracker, node.best_share_var.value, lookbehind)
-#        diff = bitcoin_data.target_to_difficulty(wb.current_work.value['bits'].target)
+        diff = bitcoin_data.target_to_difficulty(wb.current_work.value['bits'].target)
 
         return dict(
             pool_nonstale_hash_rate=nonstale_hash_rate,
             pool_hash_rate=nonstale_hash_rate/(1 - stale_prop),
             pool_stale_prop=stale_prop,
             min_difficulty=bitcoin_data.target_to_difficulty(node.tracker.items[node.best_share_var.value].max_target),
-#            network_block_difficulty=diff,
-#            network_hashrate=(diff * 2**32 // node.net.PARENT.BLOCK_PERIOD),
+            network_block_difficulty=diff,
+            network_hashrate=(diff * 2**32 // node.net.PARENT.BLOCK_PERIOD),
         )
     
     def get_local_stats():
@@ -135,6 +134,10 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
         
         miner_hash_rates, miner_dead_hash_rates = wb.get_local_rates()
         (stale_orphan_shares, stale_doa_shares), shares, _ = wb.get_stale_counts()
+
+        miner_last_difficulties = {}
+        for addr in wb.last_work_shares.value:
+            miner_last_difficulties[addr] = bitcoin_data.target_to_difficulty(wb.last_work_shares.value[addr].target)
         
         return dict(
             my_hash_rates_in_last_hour=dict(
@@ -157,6 +160,7 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
             ),
             miner_hash_rates=miner_hash_rates,
             miner_dead_hash_rates=miner_dead_hash_rates,
+            miner_last_difficulties=miner_last_difficulties,
             efficiency_if_miner_perfect=(1 - stale_orphan_shares/shares)/(1 - global_stale_prop) if shares else None, # ignores dead shares because those are miner's fault and indicated by pseudoshare rejection
             efficiency=(1 - (stale_orphan_shares+stale_doa_shares)/shares)/(1 - global_stale_prop) if shares else None,
             peers=dict(
@@ -172,8 +176,11 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
             attempts_to_share=bitcoin_data.target_to_average_attempts(node.tracker.items[node.best_share_var.value].max_target),
             attempts_to_block=bitcoin_data.target_to_average_attempts(node.bitcoind_work.value['bits'].target),
             block_value=node.bitcoind_work.value['subsidy']*1e-8,
-            warnings=p2pool_data.get_warnings(node.tracker, node.best_share_var.value, node.net, bitcoind_warning_var.value, node.bitcoind_work.value),
+            warnings=p2pool_data.get_warnings(node.tracker, node.best_share_var.value, node.net, bitcoind_getinfo_var.value, node.bitcoind_work.value),
             donation_proportion=wb.donation_percentage/100,
+            version=p2pool.__version__,
+            protocol_version=p2p.Protocol.VERSION,
+            fee=wb.worker_fee,
         )
     
     class WebInterface(deferred_resource.DeferredResource):
@@ -314,8 +321,9 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
                     hash='%064x' % share.gentx_hash,
                     coinbase=share.share_data['coinbase'].ljust(2, '\x00').encode('hex'),
                     value=share.share_data['subsidy']*1e-8,
+                    last_txout_nonce='%016x' % share.contents['last_txout_nonce'],
                 ),
-                txn_count=len(list(share.iter_transaction_hash_refs())),
+                other_transaction_hashes=['%064x' % x for x in share.get_other_tx_hashes(node.tracker)],
             ),
         )
     new_root.putChild('share', WebInterface(lambda share_hash_str: get_share(share_hash_str)))
@@ -324,6 +332,7 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
     new_root.putChild('tails', WebInterface(lambda: ['%064x' % x for t in node.tracker.tails for x in node.tracker.reverse.get(t, set())]))
     new_root.putChild('verified_tails', WebInterface(lambda: ['%064x' % x for t in node.tracker.verified.tails for x in node.tracker.verified.reverse.get(t, set())]))
     new_root.putChild('best_share_hash', WebInterface(lambda: '%064x' % node.best_share_var.value))
+    new_root.putChild('my_share_hashes', WebInterface(lambda: ['%064x' % my_share_hash for my_share_hash in wb.my_share_hashes]))
     def get_share_data(share_hash_str):
         if int(share_hash_str, 16) not in node.tracker.items:
             return ''
@@ -334,6 +343,7 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
         symbol=node.net.PARENT.SYMBOL,
         block_explorer_url_prefix=node.net.PARENT.BLOCK_EXPLORER_URL_PREFIX,
         address_explorer_url_prefix=node.net.PARENT.ADDRESS_EXPLORER_URL_PREFIX,
+        tx_explorer_url_prefix=node.net.PARENT.TX_EXPLORER_URL_PREFIX,
     )))
     new_root.putChild('version', WebInterface(lambda: p2pool.__version__))
     
@@ -352,42 +362,22 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
         'last_month': graph.DataViewDescription(300, 60*60*24*30),
         'last_year': graph.DataViewDescription(300, 60*60*24*365.25),
     }
-    def build_desired_rates(ds_name, ds_desc, dv_name, dv_desc, obj):
-        if not obj:
-            last_bin_end = 0
-            bins = dv_desc.bin_count*[{}]
-        else:
-            pool_rates = obj['pool_rates'][dv_name]
-            desired_versions = obj['desired_versions'][dv_name]
-            def get_total_pool_rate(t):
-                n = int((pool_rates['last_bin_end'] - t)/dv_desc.bin_width)
-                if n < 0 or n >= dv_desc.bin_count:
-                    return None
-                total = sum(x[0] for x in pool_rates['bins'][n].values())
-                count = math.mean(x[1] for x in pool_rates['bins'][n].values())
-                if count == 0:
-                    return None
-                return total/count
-            last_bin_end = desired_versions['last_bin_end']
-            bins = [dict((name, (total*get_total_pool_rate(last_bin_end - (i+1/2)*dv_desc.bin_width), count)) for name, (total, count) in desired_versions['bins'][i].iteritems()) for i in xrange(dv_desc.bin_count)]
-        return graph.DataView(dv_desc, ds_desc, last_bin_end, bins)
     hd = graph.HistoryDatabase.from_obj({
         'local_hash_rate': graph.DataStreamDescription(dataview_descriptions, is_gauge=False),
         'local_dead_hash_rate': graph.DataStreamDescription(dataview_descriptions, is_gauge=False),
-        'local_share_hash_rate': graph.DataStreamDescription(dataview_descriptions, is_gauge=False),
-        'local_dead_share_hash_rate': graph.DataStreamDescription(dataview_descriptions, is_gauge=False),
+        'local_share_hash_rates': graph.DataStreamDescription(dataview_descriptions, is_gauge=False,
+            multivalues=True, multivalue_undefined_means_0=True,
+            default_func=graph.make_multivalue_migrator(dict(good='local_share_hash_rate', dead='local_dead_share_hash_rate', orphan='local_orphan_share_hash_rate'),
+                post_func=lambda bins: [dict((k, (v[0] - (sum(bin.get(rem_k, (0, 0))[0] for rem_k in ['dead', 'orphan']) if k == 'good' else 0), v[1])) for k, v in bin.iteritems()) for bin in bins])),
         'pool_rates': graph.DataStreamDescription(dataview_descriptions, multivalues=True,
             multivalue_undefined_means_0=True),
         'current_payout': graph.DataStreamDescription(dataview_descriptions),
         'current_payouts': graph.DataStreamDescription(dataview_descriptions, multivalues=True),
-        'incoming_peers': graph.DataStreamDescription(dataview_descriptions),
-        'outgoing_peers': graph.DataStreamDescription(dataview_descriptions),
+        'peers': graph.DataStreamDescription(dataview_descriptions, multivalues=True, default_func=graph.make_multivalue_migrator(dict(incoming='incoming_peers', outgoing='outgoing_peers'))),
         'miner_hash_rates': graph.DataStreamDescription(dataview_descriptions, is_gauge=False, multivalues=True),
         'miner_dead_hash_rates': graph.DataStreamDescription(dataview_descriptions, is_gauge=False, multivalues=True),
-        'desired_versions': graph.DataStreamDescription(dataview_descriptions, multivalues=True,
-            multivalue_undefined_means_0=True),
         'desired_version_rates': graph.DataStreamDescription(dataview_descriptions, multivalues=True,
-            multivalue_undefined_means_0=True, default_func=build_desired_rates),
+            multivalue_undefined_means_0=True),
         'traffic_rate': graph.DataStreamDescription(dataview_descriptions, is_gauge=False, multivalues=True),
         'getwork_latency': graph.DataStreamDescription(dataview_descriptions),
         'memory_usage': graph.DataStreamDescription(dataview_descriptions),
@@ -406,11 +396,22 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
             if dead:
                 hd.datastreams['miner_dead_hash_rates'].add_datum(t, {user: work})
     @wb.share_received.watch
-    def _(work, dead):
+    def _(work, dead, share_hash):
         t = time.time()
-        hd.datastreams['local_share_hash_rate'].add_datum(t, work)
-        if dead:
-            hd.datastreams['local_dead_share_hash_rate'].add_datum(t, work)
+        if not dead:
+            hd.datastreams['local_share_hash_rates'].add_datum(t, dict(good=work))
+        else:
+            hd.datastreams['local_share_hash_rates'].add_datum(t, dict(dead=work))
+        def later():
+            res = node.tracker.is_child_of(share_hash, node.best_share_var.value)
+            if res is None: res = False # share isn't connected to sharechain? assume orphaned
+            if res and dead: # share was DOA, but is now in sharechain
+                # move from dead to good
+                hd.datastreams['local_share_hash_rates'].add_datum(t, dict(dead=-work, good=work))
+            elif not res and not dead: # share wasn't DOA, and isn't in sharechain
+                # move from good to orphan
+                hd.datastreams['local_share_hash_rates'].add_datum(t, dict(good=-work, orphan=work))
+        reactor.callLater(200, later)
     @node.p2p_node.traffic_happened.watch
     def _(name, bytes):
         hd.datastreams['traffic_rate'].add_datum(time.time(), {name: bytes})
@@ -430,12 +431,13 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
         current_txouts_by_address = dict((bitcoin_data.script2_to_address(script, node.net.PARENT), amount) for script, amount in current_txouts.iteritems())
         hd.datastreams['current_payouts'].add_datum(t, dict((user, current_txouts_by_address[user]*1e-8) for user in miner_hash_rates if user in current_txouts_by_address))
         
-        hd.datastreams['incoming_peers'].add_datum(t, sum(1 for peer in node.p2p_node.peers.itervalues() if peer.incoming))
-        hd.datastreams['outgoing_peers'].add_datum(t, sum(1 for peer in node.p2p_node.peers.itervalues() if not peer.incoming))
+        hd.datastreams['peers'].add_datum(t, dict(
+            incoming=sum(1 for peer in node.p2p_node.peers.itervalues() if peer.incoming),
+            outgoing=sum(1 for peer in node.p2p_node.peers.itervalues() if not peer.incoming),
+        ))
         
         vs = p2pool_data.get_desired_version_counts(node.tracker, node.best_share_var.value, lookbehind)
         vs_total = sum(vs.itervalues())
-        hd.datastreams['desired_versions'].add_datum(t, dict((str(k), v/vs_total) for k, v in vs.iteritems()))
         hd.datastreams['desired_version_rates'].add_datum(t, dict((str(k), v/vs_total*pool_total) for k, v in vs.iteritems()))
         try:
             hd.datastreams['memory_usage'].add_datum(t, memory.resident())
@@ -450,6 +452,6 @@ def get_web_root(wb, datadir_path, bitcoind_warning_var, stop_event=variable.Eve
         hd.datastreams['getwork_latency'].add_datum(time.time(), new_work['latency'])
     new_root.putChild('graph_data', WebInterface(lambda source, view: hd.datastreams[source].dataviews[view].get_data(time.time())))
     
-    web_root.putChild('static', static.File(os.path.join(os.path.dirname(sys.argv[0]), 'web-static')))
+    web_root.putChild('static', static.File(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), 'web-static')))
     
     return web_root

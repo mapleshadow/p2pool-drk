@@ -1,5 +1,5 @@
 // ======================================================================
-// formats a given hashrate (H/s) to humand readable hashrate
+// formats a given hashrate (H/s) to human readable hashrate
 // like xxx.yyy GH/s
 // ======================================================================
 
@@ -14,6 +14,19 @@ var formatHashrate= function(rate) {
 }
 
 // ======================================================================
+// formats a given int value to human readable si format
+// ======================================================================
+
+var formatInt= function(rate) {
+  rate= parseFloat(rate); unit= '';
+  if(rate >= 1000) { rate /= 1000; unit= ' K'; }
+  if(rate >= 1000) { rate /= 1000; unit= ' M'; }
+  if(rate >= 1000) { rate /= 1000; unit= ' G'; }
+  if(rate >= 1000) { rate /= 1000; unit= ' T'; }
+  return ((unit=='' ? rate.toFixed(0) : rate.toFixed(2)) + unit);
+}
+
+// ======================================================================
 // format seconds to an interval like '1d 7h 5s'
 
 String.prototype.formatSeconds = function () {
@@ -25,7 +38,7 @@ String.prototype.formatSeconds = function () {
 
     var time= '';
     if(days > 0) time+= days + 'd ';
-    time += hours + 'h ' + minutes + 'm ' + seconds + ' s';
+    time += hours + 'h ' + minutes + 'm ' + seconds + 's';
     return time;
 }
 

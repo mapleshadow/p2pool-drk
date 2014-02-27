@@ -226,26 +226,11 @@ def average_attempts_to_target(average_attempts):
 def target_to_difficulty(target):
     assert 0 <= target and isinstance(target, (int, long)), target
     if target >= 2**256: warnings.warn('target >= 2**256!')
-    ###Neisklar: Quarkcoins diff is 1 Byte off (256 times off), who the heck had that idea...
-    #return (0xffff0000 * 2**(256-56) + 1)/(target + 1)
-
-    ### Neisklar: this was a very bad idea, we need to keep the standard diff calculations for all the other
-	###           stuff out there. If we would change this, then we would NEED to change the miner, and since the miner is
-	###           already out there in the wild, this won't work.
-	###           The actual problem is stratum: stratum sends NOT the target, it sends the diff and then the client creates from that diff
-	###           locally the target, which means the client must know about that 1 Byte shift, which it doesn't.
-	###           So we stick to the bitcoin definition of a diff 1 target.
-	###           We just need to change the display in the p2pools log and statspage, to handle that offset.
-	###
-	###           And the diff display in the Quarkcoin wallet should be adjusted.
     return (0xffff0000 * 2**(256-64) + 1)/(target + 1)
 
 def difficulty_to_target(difficulty):
     assert difficulty >= 0
     if difficulty == 0: return 2**256-1
-    #return min(int((0xffff0000 * 2**(256-56) + 1)/difficulty - 1 + 0.5), 2**256-1)
-	
-    ### Neisklar: see above
     return min(int((0xffff0000 * 2**(256-64) + 1)/difficulty - 1 + 0.5), 2**256-1)
 
 # human addresses
@@ -274,11 +259,6 @@ def pubkey_to_address(pubkey, net):
 def address_to_pubkey_hash(address, net):
     x = human_address_type.unpack(base58_decode(address))
     if x['version'] != net.ADDRESS_VERSION:
-        raise ValueError('address not for this net!')
-    return x['pubkey_hash']
-def address_to_pubkey_hash_version(address, version):
-    x = human_address_type.unpack(base58_decode(address))
-    if x['version'] != version:
         raise ValueError('address not for this net!')
     return x['pubkey_hash']
 

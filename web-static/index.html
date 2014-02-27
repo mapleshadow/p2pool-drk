@@ -1,14 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- This script was written by Alexander Zschach <alex . zschach.net>
+         https://github.com/johndoe75/p2pool-node-status
+         Bugfixes, additional miner info display and other improvements
+         by Claus Herwig <c.herwig . checon.de> for VTC p2pool
+         https://github.com/donSchoe/p2pool-vtc
+    -->
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="">
     <meta name="author" content="">
-    <link rel="shortcut icon" href="../../docs-assets/ico/favicon.png">
-
-    <title>p2pool - node stats</title>
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+        
+    <title>p2pool</title>
 
     <link href="http://fonts.googleapis.com/css?family=Roboto:300,300italic,400,400italic,100,100italic,500,500italic,700,700italic,900,900italic" rel="stylesheet" type="text/css">
     <link href='http://fonts.googleapis.com/css?family=Roboto+Condensed:400italic,700italic,400,700' rel='stylesheet' type='text/css'>
@@ -29,18 +35,27 @@
     <script src="js/graph.js"></script>
 
     <!-- Custom styles for this template -->
-   <link href="css/grid.css" rel="stylesheet">
+    <link href="css/grid.css" rel="stylesheet">
+
     <style type="text/css">
       body {
         font-family: 'Roboto', Helvetica, sans-serif;
         font-size: 14px;
       }
     </style>
+
   </head>
+
   <body>
+    <!--<div id='ribbon'>
+      <a href="https://github.com/johndoe75/p2pool-node-status">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="img/forkme_right_orange_ff7600.png" alt="Fork me on GitHub">
+      </a>
+    </div>-->
+
     <div class="container">
       <div class="page-header">
-        <h1>p2pool <span id='currency'></span> &dash; node dashboard</h1> 
+        <h1>p2pool (<span class='currency'></span>) &dash; node dashboard</h1>
         <a href=http://www.darkcoin.io/#download>[darkcoin miner]</a> -
         <a href=http://coinz.co.vu/diff/?drk>[diff chart]</a> -
         <a href=http://darckcoin.mine.nu/>[p2pool node]</a> -
@@ -52,13 +67,11 @@
           </small>
         </b>
       </div>
+<!--
       <div id='node_alerts' class="alert alert-danger hidden"></div>
-
-      <!-- We should have a possiblity showing other miners on our node what
-           happened or if we have other things to tell them. -->
-
+      <div class="alert alert-danger"></div>
       <div class="alert alert-info"></div>
-
+-->
       <center>
         <div class='container'>
           <button id='hour' type="button" class="hashrate btn btn-info">Hour</button>
@@ -81,22 +94,24 @@
         <tr>
           <td width='25%'>Global pool rate:</td>
           <td width='25%' class='text-right'><span id='global_rate'></span></td>
-          <td width='25%'>Share difficulty:</td>
+          <td width='25%'>Share difficulty (pool minimum):</td>
           <td width='25%' class='text-right'><span id='share_difficulty'></span></td>
+        </tr>
+        <tr>
+          <td width='25%'><span class='currency'></span> network hashrate (estimate):</td>
+          <td width='25%' class='text-right'><span id='network_rate'></span></td>
+          <td width='25%'>Network block difficulty:</td>
+          <td width='25%' class='text-right'><span id='block_difficulty'></span></td>
         </tr>
         <tr>
           <td width='25%'>Current block value:</td>
           <td width='25%' class='text-right'><span id='block_value'></span></td>
-          <td width='25%'>Expected time to share:</td>
+          <td width='25%'>Expected time to share (this node):</td>
           <td width='25%' class='text-right'><span id='expected_time_to_share'></span></td>
         </tr>
         <tr>
-          <td width='25%'>Payout if a block were found NOW:</td>
-          <td width='25%' class='text-right'><span id='payout_now'></span></td>
-          <td width='25%'>Expected time to block:</td>
-          <td width='25%' class='text-right'><span id='expected_time_to_block'></span></td>
-        </tr>
-        <tr>
+        <!--  <td width='25%'>Payout if a block were found NOW:</td>
+          <td width='25%' class='text-right'><span id='payout_now'></span></td>-->
           <td width='25%'>Node peers:</td>
           <td width='25%' class='text-right'>
             <i class='fa fa-sign-in fa-fw'></i>
@@ -105,26 +120,39 @@
             <i class='fa fa-sign-out fa-fw'></i>
             <span id='peers_out'></span>
           </td>
-          <td width='25%'>Node uptime:</td>
-          <td width='25%' class='text-right'><span id='node_uptime'></span></td>
+          <td width='25%'>Expected time to block (pool):</td>
+          <td width='25%' class='text-right'><span id='expected_time_to_block'></span></td>
         </tr>
         <tr>
           <td width='25%'>Node fee:</td>
           <td width='25%' class='text-right'><span id='node_fee'></span></td>
+          <td width='25%'>Node uptime:</td>
+          <td width='25%' class='text-right'><span id='node_uptime'></span></td>
+        </tr>
+        <tr>
+          <td width='25%'>Node p2pool version:</td>
+          <td width='25%' class='text-right'><span id='p2pool_version'></span></td>
+          <td width='25%'>Protocol version:</td>
+          <td width='25%' class='text-right'><span id='protocol_version'></span></td>
+        </tr>
+        <!--<tr>
           <td width='25%'>Node donation:</td>
           <td width='25%' class='text-right'><span id='node_donation'></span></td>
-        </tr>
+        </tr>-->
       </table>
 
       <h4>Active miners on this node</h4>
-      <table id='active_miners' class="table table-hover">
-        <tr>
-          <th class='text-left'>Address</th>
+      <table class="table table-hover">
+        <thead><tr>
+          <th class='text-left'><span class='currency'></span> Address</th>
           <th class='text-right'>Hashrate</th>
-          <th class='text-right'>DOA Hashrate</th>
-          <th class='text-right'>DOA %</th>
+          <th class='text-right'>DOA Hashrate (DOA %)</th>
+          <th class='text-right'>Share difficulty</th>
+          <th class='text-right'>Time to share</th>
           <th class='text-right'>Predicted payout</th>
-        </tr>
+        </tr></thead>
+        <tbody id='active_miners'>
+        </tbody>
       </table>
 
       <h5 align="center"><a href="classic">Click here for more detailed stats
@@ -150,15 +178,14 @@
       $(document).trigger('init');
     });
 
-    // array defining my addresses for highlighting them
-
     // reload timers 
     var intervalFigures = 30;
-    var intervalGraph = 60;
-
+    var intervalGraph = 600;
+    
+    // array defining my addresses for highlighting them
     var myself= [ ];
 
-    var currency, currency_info, rate, local_stats, fee,
+    var currency, currency_info, rate, local_stats,
         global_stats, current_payouts, recent_blocks;
     var local_hashrate= 0, local_doa_hashrate= 0;
 
@@ -186,19 +213,6 @@
 
     // init
 
-//    $(document).on('init', function(e, eventInfo) {
-//      fetchdata(); fetchBlocks(); fetchGraph('day');
-//    });
-//
-//    $(document).on('update', function(e, eventInfo) {
-//      fetchdata();
-//    });
-
-    // ==================================================================
-    // custom event handlers
-
-    // init
-
     $(document).on('init', function(e, eventInfo) {
       fetchdata(); fetchBlocks(); fetchGraph('day');
     });
@@ -213,13 +227,15 @@
       };
     });
 
-
     // Fills the list of active miners on this node.  I know, there are
     // zillions of people out there on p2pool.  But I'm typically only
     // interested to see, who is mining on my node.
 
     $(document).on('update_miners', function(e, eventInfo) {
       local_hashrate= 0; local_doa_hashrate= 0;
+      
+      $('#active_miners').empty();
+      
       $.each(local_stats.miner_hash_rates, function(address, hashrate) {
         address= address.replace(/[\W\s]+/g,"invalid_address_");
         tr= $('<tr/>').attr('id', address);
@@ -234,9 +250,9 @@
           .attr('href', currency_info.address_explorer_url_prefix + address)
           .attr('target', '_blank').append(link_icon);
 
-        doa= local_stats.miner_dead_hash_rates[address];
+        doa= local_stats.miner_dead_hash_rates[address] || 0;
         doa_prop= (parseFloat(doa) / parseFloat(hashrate)) * 100;
-
+        
         local_hashrate+= hashrate;
         local_doa_hashrate+= doa;
 
@@ -245,9 +261,18 @@
         tr.append($('<td/>').attr('class', 'text-right')
           .append(formatHashrate(hashrate)));
         tr.append($('<td/>').attr('class', 'text-right')
-          .append(formatHashrate(doa)));
+          .append(formatHashrate(doa) + ' (' + doa_prop.toFixed(2) + '%)'));
+
+        diff= parseFloat(local_stats.miner_last_difficulties[address]) || 0;
+        time_to_share= (parseInt(local_stats.attempts_to_share) / parseInt(hashrate)
+         * (diff / parseFloat(global_stats.min_difficulty))) || 0;
+
         tr.append($('<td/>').attr('class', 'text-right')
-          .append(doa_prop.toFixed(2) + '%'));
+          .append(diff.toFixed(3) +
+        ' (' + formatInt(diff*65536) + ')'));
+
+        tr.append($('<td/>').attr('class', 'text-right')
+          .append((''+time_to_share).formatSeconds()));
 
         payout= current_payouts[address];
 
@@ -261,8 +286,8 @@
           tr.append($('<td/>').attr('class', 'text-right')
             .append($('<i/>').append('no shares yet')));
         }
-        $('#'+address).remove(); $('#active_miners').append(tr);
-
+        //$('#'+address).remove();
+        $('#active_miners').append(tr);
       });
 
       rate= formatHashrate(local_hashrate)
@@ -270,6 +295,7 @@
         + formatHashrate(local_doa_hashrate)
         + ' / ' + ((local_doa_hashrate / local_hashrate) * 100).toFixed(2)
         + '%)';
+      //dr="[debug: "+local_hashrate+" "+local_doa_hashrate+"]";        
       $('#local_rate').text(rate);
 
       global_doa_rate= global_stats.pool_hash_rate - global_stats.pool_nonstale_hash_rate;
@@ -280,17 +306,26 @@
         + '%)';
       $('#global_rate').text(global_rate);
 
-      $('#share_difficulty')
-        .text(parseFloat(global_stats.min_difficulty).toFixed(4));
+      $('#network_rate').text(formatHashrate(global_stats.network_hashrate));
+
+      block_diff=global_stats.network_block_difficulty
+      $('#block_difficulty').text(block_diff.toFixed(3) +
+        ' (' + formatInt(block_diff*65536) + ')');
+      
+
+      share_diff=parseFloat(global_stats.min_difficulty);
+      $('#share_difficulty').text(share_diff.toFixed(3) +
+        ' (' + formatInt(share_diff*65536) + ')');
 
       $('#block_value')
         .text(parseFloat(local_stats.block_value).toFixed(8))
         .append(' ').append(currency.clone());
 
-      $('#node_donation')
-        .text(local_stats.donation_proportion + '%');
+      //$('#node_donation')
+      //  .text(local_stats.donation_proportion + '%');
+      
       $('#node_fee')
-        .text(fee + '%');
+        .text(local_stats.fee + '%');
       $('#p2pool_version')
         .text(local_stats.version);
       $('#protocol_version')
@@ -301,7 +336,7 @@
 
       $('#node_uptime').text(('' + local_stats.uptime).formatSeconds());
 
-       $(document).attr('title', formatHashrate(local_hashrate)+ ' p2pool - '+currency_info.symbol+' - '+location.host);
+      $(document).attr('title', formatHashrate(local_hashrate)+ ' p2pool - '+currency_info.symbol+' - '+location.host);
 
       if(local_stats.warnings.length > 0) {
         $('#node_alerts').empty();
@@ -331,7 +366,7 @@
       time_to_block= parseInt(local_stats.attempts_to_block) / parseInt(global_stats.pool_hash_rate);
       $('#expected_time_to_block').text((''+time_to_block).formatSeconds());
 
-      $('#payout_now').html('&dash;');
+      //$('#payout_now').html('&dash;');
     });
 
     // Fills the recent block table
@@ -351,13 +386,15 @@
         tr.append($('<td/>').append($.format.date(new Date(ts * 1000))));
         tr.append($('<td/>').append(num));
         tr.append($('<td/>').append(blockinfo));
-        tr.append($('<td/>').html('&dash;'));
+        //tr.append($('<td/>').html('&dash;'));
         $('#recent_blocks').append(tr);
       });
     });
 
     // Places the currency this node is mining in the page header.  If it's
     // Bitcoin, use the fontawesome BTC icon.
+    
+    //doing some other init here
 
     var set_currency_symbol= true;
     $(document).on('update_currency', function(e, eventInfo) {
@@ -368,13 +405,13 @@
       else { currency= $('<span/>').append(currency_info.symbol); }
 
       if(set_currency_symbol) {
-        $('#currency')
-
+        $('.currency')
           .append(currency);
-
+        //$(document).attr('title','p2pool - '+currency_info.symbol+' - '+location.host);
+        
         $('.node')
           .append(location.host);
-
+          
         set_currency_symbol= false;
       }
     });
@@ -399,9 +436,6 @@
           $.getJSON('/local_stats', function(data) {
             if(data) local_stats= data;
 
-           $.getJSON('/fee', function(data) {
-             if(data) fee= data;
-
             $.getJSON('/current_payouts', function(data) {
               if(data) current_payouts= data;
 
@@ -411,7 +445,6 @@
                 $(document).trigger('update_time');
               });
             });
-          });
           });
         });
       });
@@ -427,13 +460,12 @@
       });
     }
 
-
     var fetchGraph= function(interval) {
       //console.log(interval);
       var graph_hashrate= [], graph_doa_hashrate= [];
 
-      if(!interval) interval= day;
- 
+     if(!interval) interval= day; 
+
       $.getJSON('/web/graph_data/local_hash_rate/last_' + interval, function(data) {
         $.each(data, function(key, value) {
           el= []; el.push(parseInt(value[0]) * 1000,
@@ -453,10 +485,17 @@
       })
     }
 
+    // Let the GitHub ribbon fade out and be removed after 5 seconds.
+
+    //(setTimeout(function() {
+    //  $('#ribbon').fadeOut(1000, function() {
+    //    this.remove();
+    //  });
+    //}, intervalFigures * 1000);
+
     setInterval(function() {
       $(document).trigger('update');
     }, intervalFigures * 1000);
-
 
     </script>
   </body>

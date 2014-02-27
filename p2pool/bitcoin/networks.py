@@ -4,7 +4,18 @@ import platform
 from twisted.internet import defer
 
 from . import data
-from p2pool.util import math, pack
+from p2pool.util import math, pack, jsonrpc
+from operator import *
+
+
+@defer.inlineCallbacks
+def check_genesis_block(bitcoind, genesis_block_hash):
+    try:
+        yield bitcoind.rpc_getblock(genesis_block_hash)
+    except jsonrpc.Error_for_code(-5):
+        defer.returnValue(False)
+    else:
+        defer.returnValue(True)
 
 nets = dict(
 
@@ -30,6 +41,7 @@ nets = dict(
         DUMB_SCRYPT_DIFF=1,
         DUST_THRESHOLD=0.001e8,
     ),
+
 )
 for net_name, net in nets.iteritems():
     net.NAME = net_name

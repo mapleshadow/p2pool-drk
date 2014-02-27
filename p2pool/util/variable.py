@@ -74,10 +74,6 @@ class Variable(object):
         self.changed.happened(value)
         self.transitioned.happened(oldvalue, value)
     
-    def __str__(self):
-        return 'Variable: '+repr(self)+' ::\n '+str(self.value)
-    
-    
     @defer.inlineCallbacks
     def get_when_satisfies(self, func):
         while True:
