@@ -18,6 +18,25 @@ Windows:
 * Install python win32 api wmi wrapper: https://pypi.python.org/pypi/WMI/#downloads
 * Unzip the files into C:\Python27\Lib\site-packages
 
+
+Install module:
+-------------------------
+
+apt-get install libboost1.48-all-dev python-dev
+
+
+cd py_module/darkcoin-hash-python
+
+python setup.py install
+
+-
+
+py_module/darkcoin-subsidy-python
+
+python setup.py install
+
+
+
 Running P2Pool:
 -------------------------
 To use P2Pool, you must be running your own local bitcoind. For standard
@@ -99,8 +118,3 @@ Thanks to:
 * The Litecoin Project for its generous donations to P2Pool
 * The Vertcoin Community for its great contribution to P2Pool
 
-
-
-##### PORT CHANGE
-# nat
-# -A PREROUTING -i eth0 -p tcp --dport 6903 -j REDIRECT --to-port 7903
