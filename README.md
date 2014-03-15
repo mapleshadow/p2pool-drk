@@ -22,18 +22,17 @@ Windows:
 Install module:
 -------------------------
 
-apt-get install libboost1.48-all-dev python-dev
+* apt-get install libboost1.48-all-dev python-dev
 
 
-git clone https://github.com/chaeplin/SUBSIDY_FUNC.git
-git clone https://github.com/evan82/xcoin-hash.git
+* git clone https://github.com/chaeplin/SUBSIDY_FUNC.git
+* git clone https://github.com/evan82/xcoin-hash.git
 
-cd SUBSIDY_FUNC/darkcoin-subsidy-python
-python setup.py install
+* cd SUBSIDY_FUNC/darkcoin-subsidy-python
+* python setup.py install
 
--
-cd xcoin-hash
-python setup.py install
+* cd xcoin-hash
+* python setup.py install
 
 
 
