@@ -1,0 +1,1 @@
+xcoin-hash is at https://github.com/evan82/xcoin-hash
