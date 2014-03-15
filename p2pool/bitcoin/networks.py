@@ -29,8 +29,8 @@ nets = dict(
             not (yield bitcoind.rpc_getinfo())['testnet']
         )),                           
         SUBSIDY_FUNC=lambda nBits, height: __import__('darkcoin_subsidy').GetBlockBaseValue(nBits, height),
-        BLOCKHASH_FUNC=lambda data: pack.IntType(256).unpack(__import__('dark_hash').getPoWHash(data)),
-        POW_FUNC=lambda data: pack.IntType(256).unpack(__import__('dark_hash').getPoWHash(data)),
+        BLOCKHASH_FUNC=lambda data: pack.IntType(256).unpack(__import__('xcoin_hash').getPoWHash(data)),
+        POW_FUNC=lambda data: pack.IntType(256).unpack(__import__('xcoin_hash').getPoWHash(data)),
         BLOCK_PERIOD=150, # s
         SYMBOL='DRK',
         CONF_FILE_FUNC=lambda: os.path.join(os.path.join(os.environ['APPDATA'], 'Darkcoin') if platform.system() == 'Windows' else os.path.expanduser('~/Library/Application Support/Darkcoin/') if platform.system() == 'Darwin' else os.path.expanduser('~/.darkcoin'), 'darkcoin.conf'),
