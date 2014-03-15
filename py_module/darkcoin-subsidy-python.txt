@@ -1,1 +1,2 @@
-SUBSIDY_FUNC is at https://github.com/chaeplin/SUBSIDY_FUNC
+SUBSIDY_FUNC is at 
+git clone https://github.com/chaeplin/SUBSIDY_FUNC.git
