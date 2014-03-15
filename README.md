@@ -25,14 +25,14 @@ Install module:
 apt-get install libboost1.48-all-dev python-dev
 
 
-cd py_module/darkcoin-hash-python
+git clone https://github.com/chaeplin/SUBSIDY_FUNC.git
+git clone https://github.com/evan82/xcoin-hash.git
 
+cd SUBSIDY_FUNC/darkcoin-subsidy-python
 python setup.py install
 
 -
-
-py_module/darkcoin-subsidy-python
-
+cd xcoin-hash
 python setup.py install
 
 
